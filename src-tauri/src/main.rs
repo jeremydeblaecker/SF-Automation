@@ -4,9 +4,10 @@ use chrono::Local;
 use serde::Serialize;
 use serde_json::Value;
 use sf_api::{
-    command::Command,
+    command::{Command, FortunePayment},
     gamestate::{
         dungeons::{Dungeon, DungeonProgress, LightDungeon},
+        fortress::FortressBuildingType,
         tavern::{AvailableTasks, CurrentAction, ExpeditionStage},
         unlockables::HabitatType,
         GameState,
@@ -266,6 +267,14 @@ fn is_mushroom_safe_command(command: &Command) -> bool {
         // PAS le reroll payant (use_mushroom: true).
         Command::FortressAttack { .. } => true,
         Command::FortressNewEnemy { use_mushroom: false } => true,
+        Command::FortressGemStoneSearch => true,
+        Command::FortressGemStoneSearchFinish { mushrooms: 0 } => true,
+
+        // Roue : seuls le tour gratuit et les Lucky Coins sont autorisés.
+        // Le paiement en champignons reste bloqué par défaut.
+        Command::SpinWheelOfFortune {
+            payment: FortunePayment::FreeTurn | FortunePayment::LuckyCoins,
+        } => true,
 
         // Guilde : participation personnelle gratuite uniquement. Le lancement
         // d'une attaque ou d'un raid reste une décision manuelle d'officier.
@@ -1065,6 +1074,161 @@ async fn run_guild(
     ))
 }
 
+
+async fn run_gem_mine(
+    connected: &mut ConnectedSession,
+    store: &SessionStore,
+) -> Result<AutomationCycleResult, String> {
+    let state = connected
+        .session
+        .game_state()
+        .ok_or_else(|| "État S&F indisponible".to_string())?;
+    let Some(fortress) = &state.fortress else {
+        return Ok(AutomationCycleResult::idle(
+            "Forteresse non débloquée",
+            "La mine de gemmes nécessite la forteresse.",
+            Duration::from_secs(60 * 60),
+        ));
+    };
+
+    if fortress.buildings[FortressBuildingType::GemMine].level == 0 {
+        return Ok(AutomationCycleResult::idle(
+            "Mine de gemmes non construite",
+            "La mine de gemmes n'est pas encore disponible sur ce personnage.",
+            Duration::from_secs(60 * 60),
+        ));
+    }
+
+    if let Some(finish) = fortress.gem_search.finish {
+        if finish > Local::now() {
+            return Ok(AutomationCycleResult::idle(
+                "Recherche de gemme en cours",
+                "La recherche est déjà lancée; aucune requête n'est nécessaire avant sa fin.",
+                chrono_wait(finish),
+            ));
+        }
+
+        if state.character.inventory.count_free_slots() == 0 {
+            return Ok(AutomationCycleResult::idle(
+                "Inventaire plein",
+                "La gemme est prête mais aucun emplacement d'inventaire n'est disponible.",
+                Duration::from_secs(10 * 60),
+            ));
+        }
+
+        send_limited(
+            connected,
+            store,
+            Command::FortressGemStoneSearchFinish { mushrooms: 0 },
+        )
+        .await?;
+
+        return Ok(AutomationCycleResult::sent(
+            "Récupérer la gemme",
+            "La recherche est terminée et la gemme est récupérée sans utiliser de champignon.",
+            "Gemme récupérée.",
+            Duration::from_secs(15),
+        ));
+    }
+
+    let search_cost = fortress.gem_search.cost.silver;
+    if state.character.silver < search_cost {
+        return Ok(AutomationCycleResult::idle(
+            "Or insuffisant",
+            format!(
+                "La prochaine recherche coûte {search_cost} or; le personnage n'en possède pas assez."
+            ),
+            Duration::from_secs(30 * 60),
+        ));
+    }
+
+    send_limited(connected, store, Command::FortressGemStoneSearch).await?;
+
+    let cooldown = connected
+        .session
+        .game_state()
+        .and_then(|gs| gs.fortress.as_ref())
+        .and_then(|fortress| fortress.gem_search.finish)
+        .filter(|date| *date > Local::now())
+        .map(chrono_wait)
+        .unwrap_or(Duration::from_secs(60));
+
+    Ok(AutomationCycleResult::sent(
+        "Rechercher une gemme",
+        format!("Nouvelle recherche lancée pour {search_cost} or, sans champignon."),
+        "Recherche de gemme démarrée.",
+        cooldown,
+    ))
+}
+
+async fn run_wheel(
+    connected: &mut ConnectedSession,
+    store: &SessionStore,
+) -> Result<AutomationCycleResult, String> {
+    const LUCKY_COIN_SPIN_COST: u32 = 10;
+    const NORMAL_DAILY_SPIN_LIMIT: u8 = 20;
+
+    let state = connected
+        .session
+        .game_state()
+        .ok_or_else(|| "État S&F indisponible".to_string())?;
+    let wheel = &state.specials.wheel;
+
+    if wheel.spins_today >= NORMAL_DAILY_SPIN_LIMIT {
+        return Ok(AutomationCycleResult::idle(
+            "Roue terminée",
+            format!(
+                "{} tour(s) effectué(s) aujourd'hui; plafond quotidien normal atteint.",
+                wheel.spins_today
+            ),
+            Duration::from_secs(60 * 60),
+        ));
+    }
+
+    let free_turn_available = wheel.spins_today == 0
+        || wheel
+            .next_free_spin
+            .is_some_and(|next_free| next_free <= Local::now());
+
+    let payment = if free_turn_available {
+        FortunePayment::FreeTurn
+    } else if wheel.lucky_coins >= LUCKY_COIN_SPIN_COST {
+        FortunePayment::LuckyCoins
+    } else {
+        return Ok(AutomationCycleResult::idle(
+            "Aucun tour sûr disponible",
+            format!(
+                "{} Lucky Coin(s) disponible(s); il en faut {}. Aucun champignon ne sera utilisé.",
+                wheel.lucky_coins, LUCKY_COIN_SPIN_COST
+            ),
+            Duration::from_secs(30 * 60),
+        ));
+    };
+
+    let reason = match payment {
+        FortunePayment::FreeTurn => "Le tour gratuit est disponible.".to_string(),
+        FortunePayment::LuckyCoins => format!(
+            "{} Lucky Coins sont disponibles; le tour coûte {} Lucky Coins.",
+            wheel.lucky_coins, LUCKY_COIN_SPIN_COST
+        ),
+        FortunePayment::Mushrooms => unreachable!("Le paiement en champignons n'est jamais sélectionné"),
+    };
+
+    send_limited(
+        connected,
+        store,
+        Command::SpinWheelOfFortune { payment },
+    )
+    .await?;
+
+    Ok(AutomationCycleResult::sent(
+        "Tourner la roue de la fortune",
+        reason,
+        "Roue tournée sans utiliser de champignon.",
+        Duration::from_secs(15),
+    ))
+}
+
 /// IMPORTANT: contrairement à l'arène et aux donjons, sf-api n'expose pas les
 /// statistiques de l'armée adverse pour une attaque de forteresse (seul
 /// l'identifiant du joueur ciblé est connu). Il est donc impossible de
@@ -1284,6 +1448,8 @@ async fn sf_automation_cycle(
         "pets" => run_pets(connected, &store).await,
         "fortress" => run_fortress(connected, &store).await,
         "guild" => run_guild(connected, &store).await,
+        "gem-mine" => run_gem_mine(connected, &store).await,
+        "wheel" => run_wheel(connected, &store).await,
         _ => Err(format!("Automatisation inconnue: {automation_id}")),
     }?;
 
