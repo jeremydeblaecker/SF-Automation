@@ -1351,6 +1351,20 @@ mod tests {
     }
 
     #[test]
+    fn free_guild_hydra_fight_is_allowed() {
+        assert!(is_mushroom_safe_command(&Command::GuildPetBattle {
+            use_mushroom: false,
+        }));
+    }
+
+    #[test]
+    fn mushroom_guild_hydra_fight_is_blocked() {
+        assert!(!is_mushroom_safe_command(&Command::GuildPetBattle {
+            use_mushroom: true,
+        }));
+    }
+
+    #[test]
     fn mushroom_arena_fight_is_blocked() {
         assert!(!is_mushroom_safe_command(&Command::Fight {
             name: "adversaire".to_string(),
