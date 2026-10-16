@@ -1135,3 +1135,39 @@ fn main() {
         .run(tauri::generate_context!())
         .expect("error while running MercySF Reborn");
 }
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn update_is_allowed() {
+        assert!(is_mushroom_safe_command(&Command::Update));
+    }
+
+    #[test]
+    fn arena_check_is_allowed() {
+        assert!(is_mushroom_safe_command(&Command::CheckArena));
+    }
+
+    #[test]
+    fn safe_quest_start_is_allowed() {
+        assert!(is_mushroom_safe_command(&Command::StartQuest { quest_pos: 0, overwrite_inv: false }));
+    }
+
+    #[test]
+    fn safe_quest_finish_is_allowed() {
+        assert!(is_mushroom_safe_command(&Command::FinishQuest { skip: None }));
+    }
+
+    #[test]
+    fn free_arena_fight_is_allowed() {
+        assert!(is_mushroom_safe_command(&Command::Fight { name: "adversaire".to_string(), use_mushroom: false }));
+    }
+
+    #[test]
+    fn mushroom_arena_fight_is_blocked() {
+        assert!(!is_mushroom_safe_command(&Command::Fight { name: "adversaire".to_string(), use_mushroom: true }));
+    }
+}
