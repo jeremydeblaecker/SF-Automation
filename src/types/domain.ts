@@ -1,4 +1,4 @@
-export type AutomationId = "tavern" | "arena" | "dungeons" | "expeditions" | "pets" | "fortress" | "guild";
+export type AutomationId = "tavern" | "arena" | "dungeons" | "expeditions" | "pets" | "fortress" | "guild" | "gem-mine" | "wheel";
 
 export interface Character {
   id: string;
