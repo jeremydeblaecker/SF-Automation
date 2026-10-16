@@ -67,6 +67,17 @@ La sécurité réseau est imposée par le backend :
 - conserve une réserve de soldats avant une attaque ;
 - utilise une heuristique prudente car `sf-api` n'expose pas de simulation fiable de l'armée adverse.
 
+## Simulateurs
+
+### Dungeon Simulator
+
+- accessible depuis la sidebar ;
+- utilise directement l'état déjà chargé du personnage ;
+- sélectionne le premier donjon standard ouvert ;
+- simule localement de 100 à 20 000 combats avec le moteur de `sf-api` ;
+- affiche la probabilité de victoire et la compare au seuil automatique de 60 % ;
+- n'envoie **aucune requête S&F** pendant la simulation.
+
 ## Qualité et vérifications
 
 Le dépôt contient désormais :
