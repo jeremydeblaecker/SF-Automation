@@ -267,6 +267,13 @@ fn is_mushroom_safe_command(command: &Command) -> bool {
         Command::FortressAttack { .. } => true,
         Command::FortressNewEnemy { use_mushroom: false } => true,
 
+        // Guilde : participation personnelle gratuite uniquement. Le lancement
+        // d'une attaque ou d'un raid reste une décision manuelle d'officier.
+        Command::GuildJoinAttack
+        | Command::GuildJoinDefense
+        | Command::GuildPortalBattle => true,
+        Command::GuildPetBattle { use_mushroom: false } => true,
+
         // Fail closed : toute nouvelle commande doit être auditée puis ajoutée
         // explicitement à cette allowlist avant de pouvoir partir au serveur.
         _ => false,
@@ -942,6 +949,122 @@ async fn run_pets(
     ))
 }
 
+
+fn json_member_has_joined(guild: &Value, username: &str, battle: &str) -> bool {
+    guild
+        .get("members")
+        .and_then(Value::as_array)
+        .and_then(|members| {
+            members.iter().find(|member| {
+                member.get("name").and_then(Value::as_str).is_some_and(|name| name.eq_ignore_ascii_case(username))
+            })
+        })
+        .and_then(|member| member.get("battles_joined").or_else(|| member.get("battlesJoined")))
+        .is_some_and(|joined| {
+            let text = joined.to_string().to_ascii_lowercase();
+            text.contains(battle) || text.contains("both")
+        })
+}
+
+fn json_member_fought_portal(guild: &Value, username: &str) -> bool {
+    guild
+        .get("members")
+        .and_then(Value::as_array)
+        .and_then(|members| {
+            members.iter().find(|member| {
+                member.get("name").and_then(Value::as_str).is_some_and(|name| name.eq_ignore_ascii_case(username))
+            })
+        })
+        .and_then(|member| member.get("portal_fought").or_else(|| member.get("portalFought")))
+        .is_some_and(|value| !value.is_null())
+}
+
+async fn run_guild(
+    connected: &mut ConnectedSession,
+    store: &SessionStore,
+) -> Result<AutomationCycleResult, String> {
+    let state = connected
+        .session
+        .game_state()
+        .ok_or_else(|| "État S&F indisponible".to_string())?;
+    let state_json = serde_json::to_value(state).map_err(|e| format!("Lecture de la guilde impossible: {e}"))?;
+    let Some(guild) = state_json.get("guild").filter(|value| !value.is_null()) else {
+        return Ok(AutomationCycleResult::idle(
+            "Aucune guilde",
+            "Le personnage n'appartient actuellement à aucune guilde.",
+            Duration::from_secs(60 * 60),
+        ));
+    };
+    let username = connected.session.username().to_string();
+
+    if guild.get("attacking").is_some_and(|value| !value.is_null())
+        && !json_member_has_joined(guild, &username, "attack")
+    {
+        send_limited(connected, store, Command::GuildJoinAttack).await?;
+        return Ok(AutomationCycleResult::sent(
+            "Participer à l'attaque de guilde",
+            "Une attaque est planifiée et le personnage n'était pas encore inscrit.",
+            "Participation à l'attaque enregistrée.",
+            Duration::from_secs(30),
+        ));
+    }
+
+    if guild.get("defending").is_some_and(|value| !value.is_null())
+        && !json_member_has_joined(guild, &username, "defen")
+    {
+        send_limited(connected, store, Command::GuildJoinDefense).await?;
+        return Ok(AutomationCycleResult::sent(
+            "Participer à la défense de guilde",
+            "Une défense est planifiée et le personnage n'était pas encore inscrit.",
+            "Participation à la défense enregistrée.",
+            Duration::from_secs(30),
+        ));
+    }
+
+    let hydra = guild.get("hydra");
+    let remaining_fights = hydra
+        .and_then(|value| value.get("remaining_fights").or_else(|| value.get("remainingFights")))
+        .and_then(Value::as_u64)
+        .unwrap_or_default();
+    let hydra_alive = hydra
+        .and_then(|value| value.get("current_life").or_else(|| value.get("currentLife")))
+        .and_then(Value::as_u64)
+        .unwrap_or_default() > 0;
+
+    if remaining_fights > 0 && hydra_alive {
+        send_limited(
+            connected,
+            store,
+            Command::GuildPetBattle {
+                use_mushroom: false,
+            },
+        )
+        .await?;
+        return Ok(AutomationCycleResult::sent(
+            "Combattre l'Hydre",
+            format!("{remaining_fights} combat(s) gratuit(s) d'Hydre disponible(s)."),
+            "Combat d'Hydre lancé sans champignon.",
+            Duration::from_secs(30 * 60),
+        ));
+    }
+
+    if !json_member_fought_portal(guild, &username) {
+        send_limited(connected, store, Command::GuildPortalBattle).await?;
+        return Ok(AutomationCycleResult::sent(
+            "Combattre au portail de guilde",
+            "Le combat quotidien du portail n'a pas encore été effectué.",
+            "Combat du portail de guilde lancé.",
+            Duration::from_secs(30 * 60),
+        ));
+    }
+
+    Ok(AutomationCycleResult::idle(
+        "Guilde à jour",
+        "Aucune action personnelle gratuite de guilde n'est actuellement nécessaire.",
+        Duration::from_secs(30 * 60),
+    ))
+}
+
 /// IMPORTANT: contrairement à l'arène et aux donjons, sf-api n'expose pas les
 /// statistiques de l'armée adverse pour une attaque de forteresse (seul
 /// l'identifiant du joueur ciblé est connu). Il est donc impossible de
@@ -1160,6 +1283,7 @@ async fn sf_automation_cycle(
         "expeditions" => run_expeditions(connected, &store).await,
         "pets" => run_pets(connected, &store).await,
         "fortress" => run_fortress(connected, &store).await,
+        "guild" => run_guild(connected, &store).await,
         _ => Err(format!("Automatisation inconnue: {automation_id}")),
     }?;
 
