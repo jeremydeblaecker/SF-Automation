@@ -1,4 +1,4 @@
-import type { AutomationId, Character } from "../types/domain";
+import type { AutomationId, Character, DungeonSimulationResult } from "../types/domain";
 
 export interface AutomationRunResult {
   action: string;
@@ -26,6 +26,7 @@ export type LoginRequest = AccountLogin | CharacterLogin;
 export interface GameClient {
   getCharacter(characterId: string): Promise<Character>;
   runAutomation(automationId: AutomationId, characterId: string): Promise<AutomationRunResult>;
+  simulateDungeon(characterId: string, iterations: number): Promise<DungeonSimulationResult>;
 }
 
 export interface ConnectedGameClient extends GameClient {
@@ -56,6 +57,20 @@ export class MockGameClient implements ConnectedGameClient {
     const character = this.characters.find((item) => item.id === characterId);
     if (!character) throw new Error("Personnage introuvable");
     return character;
+  }
+
+  async simulateDungeon(characterId: string, iterations: number): Promise<DungeonSimulationResult> {
+    await this.getCharacter(characterId);
+    await sleep(150);
+    const winRatio = 0.72;
+    return {
+      dungeon: "Donjon simulé",
+      iterations,
+      winRatio,
+      threshold: 0.60,
+      recommended: winRatio >= 0.60,
+      recommendation: "Simulation locale de démonstration.",
+    };
   }
 
   async runAutomation(automationId: AutomationId, characterId: string): Promise<AutomationRunResult> {
@@ -114,6 +129,10 @@ export class SfTauriClient implements ConnectedGameClient {
 
   async getCharacter(characterId: string) {
     return this.characterCache.get(characterId) ?? this.refresh(characterId);
+  }
+
+  async simulateDungeon(characterId: string, iterations: number): Promise<DungeonSimulationResult> {
+    return this.invoke<DungeonSimulationResult>("sf_simulate_dungeon", { characterId, iterations });
   }
 
   async runAutomation(automationId: AutomationId, characterId: string): Promise<AutomationRunResult> {
