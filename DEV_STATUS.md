@@ -31,6 +31,8 @@
 - **Familiers** : réel, désactivé par défaut, sélection du meilleur familier nourrissable.
 - **Forteresse** : réel, désactivé par défaut, heuristique de réserve de soldats.
 - **Guilde** : réel, désactivé par défaut, participation attaque/défense, Hydre gratuite et portail quotidien.
+- **Mine de gemmes** : réel, désactivé par défaut, récupération gratuite et relance si l'or est suffisant.
+- **Roue de la fortune** : réel, désactivé par défaut, tour gratuit puis Lucky Coins uniquement.
 
 ### Validation
 
