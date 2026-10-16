@@ -84,6 +84,17 @@ struct CharacterSummary {
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+struct DungeonSimulationResult {
+    dungeon: String,
+    iterations: u32,
+    win_ratio: f64,
+    threshold: f64,
+    recommended: bool,
+    recommendation: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 struct AutomationCycleResult {
     action: String,
     reason: String,
@@ -137,9 +148,13 @@ fn chrono_wait(until: chrono::DateTime<Local>) -> Duration {
 /// réseau). `is_arena_battle` doit être vrai pour l'arène (tour de jeu
 /// différent des donjons).
 fn estimate_win_ratio(state: &GameState, opponent: Fighter, is_arena_battle: bool) -> f64 {
+    estimate_win_ratio_with_iterations(state, opponent, is_arena_battle, FIGHT_SIMULATION_ITERATIONS)
+}
+
+fn estimate_win_ratio_with_iterations(state: &GameState, opponent: Fighter, is_arena_battle: bool, iterations: u32) -> f64 {
     let squad = PlayerFighterSquad::new(state);
     let own = Fighter::from(&squad.character);
-    simulate_battle(&[own], &[opponent], FIGHT_SIMULATION_ITERATIONS, is_arena_battle).win_ratio
+    simulate_battle(&[own], &[opponent], iterations, is_arena_battle).win_ratio
 }
 
 fn value_at<'a>(value: &'a Value, path: &[&str]) -> Option<&'a Value> {
@@ -1082,6 +1097,43 @@ async fn sf_refresh_character(
 }
 
 #[tauri::command]
+async fn sf_simulate_dungeon(
+    character_id: String,
+    iterations: u32,
+    store: State<'_, SessionStore>,
+) -> Result<DungeonSimulationResult, String> {
+    let iterations = iterations.clamp(100, 20_000);
+    let guard = store.sessions.lock().await;
+    let connected = guard
+        .iter()
+        .find(|entry| entry.id == character_id)
+        .ok_or_else(|| "Session S&F introuvable".to_string())?;
+    let state = connected
+        .session
+        .game_state()
+        .ok_or_else(|| "État des donjons indisponible".to_string())?;
+    let dungeon = first_open_dungeon(state).ok_or_else(|| "Aucun donjon standard ouvert".to_string())?;
+    let monster = state
+        .dungeons
+        .current_enemy(dungeon)
+        .ok_or_else(|| "Monstre du donjon indisponible pour la simulation".to_string())?;
+    let win_ratio = estimate_win_ratio_with_iterations(state, Fighter::from(monster), false, iterations);
+    let recommended = win_ratio >= MIN_WIN_PROBABILITY;
+    Ok(DungeonSimulationResult {
+        dungeon: format!("{dungeon:?}"),
+        iterations,
+        win_ratio,
+        threshold: MIN_WIN_PROBABILITY,
+        recommended,
+        recommendation: if recommended {
+            format!("Combat conseillé : {:.1}% de victoire estimée.", win_ratio * 100.0)
+        } else {
+            format!("Attendre une amélioration : {:.1}% de victoire estimée.", win_ratio * 100.0)
+        },
+    })
+}
+
+#[tauri::command]
 async fn sf_automation_cycle(
     character_id: String,
     automation_id: String,
@@ -1129,6 +1181,7 @@ fn main() {
             sf_login_account,
             sf_login_character,
             sf_refresh_character,
+            sf_simulate_dungeon,
             sf_automation_cycle,
             sf_logout
         ])
