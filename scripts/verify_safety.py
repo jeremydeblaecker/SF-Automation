@@ -22,6 +22,8 @@ check('Cooldown backend minimum de 8 secondes', 'MIN_MODULE_RECHECK: Duration = 
 check('Backoff exponentiel avec plafond 15 min', '.min(15 * 60)' in production_rust and 'error_streak' in production_rust)
 check('StartQuest ne remplace jamais un objet', 'overwrite_inv: false' in production_rust and 'overwrite_inv: true' not in production_rust)
 check('Aucun Fight ne demande de champignon', 'use_mushroom: true' not in production_rust and production_rust.count('use_mushroom: false') >= 2)
+check('La roue n\'utilise jamais les champignons', 'FortunePayment::Mushrooms' not in production_rust)
+check('La récupération de gemme ne paie pas de champignon', 'FortressGemStoneSearchFinish { mushrooms: 0 }' in production_rust)
 check('Allowlist anti-champignons active', 'fn is_mushroom_safe_command' in production_rust and 'Fail closed' in production_rust)
 check('Toute commande réseau passe par la protection premium', production_rust.count('session.send_command(') == 1 and 'is_mushroom_safe_command(&command)' in production_rust)
 check('Les skips de quête sont bloqués', 'Command::FinishQuest { skip: None } => true' in production_rust)
