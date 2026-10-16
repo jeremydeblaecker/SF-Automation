@@ -67,6 +67,17 @@ La sécurité réseau est imposée par le backend :
 - conserve une réserve de soldats avant une attaque ;
 - utilise une heuristique prudente car `sf-api` n'expose pas de simulation fiable de l'armée adverse.
 
+### Guilde
+
+- module disponible mais désactivé par défaut ;
+- rejoint automatiquement une attaque de guilde déjà planifiée ;
+- rejoint automatiquement une défense de guilde déjà planifiée ;
+- combat l'Hydre lorsqu'un combat gratuit est disponible avec `use_mushroom = false` ;
+- effectue le combat quotidien du portail lorsqu'il n'a pas encore été fait ;
+- n'envoie qu'une action réseau par cycle ;
+- ne lance jamais automatiquement une attaque de guilde ou un raid : ces décisions restent manuelles pour ne pas engager la stratégie ou les ressources de toute la guilde ;
+- `GuildLoadMushrooms` reste bloqué par l'allowlist *fail closed*.
+
 ## Simulateurs
 
 ### Dungeon Simulator
