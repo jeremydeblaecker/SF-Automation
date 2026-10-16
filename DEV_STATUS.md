@@ -30,6 +30,7 @@
 - **Expéditions** : réel, désactivé par défaut, stratégie de choix encore simple.
 - **Familiers** : réel, désactivé par défaut, sélection du meilleur familier nourrissable.
 - **Forteresse** : réel, désactivé par défaut, heuristique de réserve de soldats.
+- **Guilde** : réel, désactivé par défaut, participation attaque/défense, Hydre gratuite et portail quotidien.
 
 ### Validation
 
