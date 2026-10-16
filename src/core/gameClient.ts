@@ -89,6 +89,8 @@ export class MockGameClient implements ConnectedGameClient {
         return { action: "Nourrir le meilleur familier", reason: "Familier de plus haut niveau avec fruit disponible (simulation)", message: "Familier simulé nourri.", cooldownMs: 15_000, didRequest: false };
       case "fortress":
         return { action: "Attaquer la forteresse ennemie", reason: "Heuristique de réserve de soldats (simulation, pas de vraie prédiction)", message: "Attaque de forteresse simulée.", cooldownMs: 30_000, didRequest: false };
+      case "guild":
+        return { action: "Vérifier la guilde", reason: "Hydre, portail et combats de guilde simulés", message: "Cycle guilde simulé.", cooldownMs: 30_000, didRequest: false };
     }
   }
 }
