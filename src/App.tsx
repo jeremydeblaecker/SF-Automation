@@ -1,12 +1,15 @@
+import { useState } from "react";
 import { Bot, ChevronDown, CircleStop, LogOut, Play, RefreshCw, Server } from "lucide-react";
 import { AutomationCard } from "./components/AutomationCard";
 import { LoginPanel } from "./components/LoginPanel";
 import { Logs } from "./components/Logs";
-import { Sidebar } from "./components/Sidebar";
+import { DungeonSimulator } from "./components/DungeonSimulator";
+import { Sidebar, type AppView } from "./components/Sidebar";
 import { useAppStore } from "./store/useAppStore";
 import "./styles.css";
 
 export default function App() {
+  const [view, setView] = useState<AppView>("dashboard");
   const {
     state,
     nativeMode,
@@ -16,6 +19,7 @@ export default function App() {
     toggleRunning,
     selectCharacter,
     toggleAutomation,
+    simulateDungeon,
     runNow,
   } = useAppStore();
 
@@ -26,10 +30,10 @@ export default function App() {
   const character = state.characters.find((item) => item.id === state.activeCharacterId) ?? state.characters[0];
 
   return <div className="app-shell">
-    <Sidebar/>
+    <Sidebar activeView={view} onNavigate={setView}/>
     <main>
       <header className="topbar">
-        <div><span className="eyebrow">AUTOMATION CONTROL CENTER</span><h1>Dashboard</h1></div>
+        <div><span className="eyebrow">AUTOMATION CONTROL CENTER</span><h1>{view === "dashboard" ? "Dashboard" : "Dungeon Simulator"}</h1></div>
         <div className="top-actions">
           <div className="connection"><span className="online-dot"/>S&amp;F connecté</div>
           <button className="icon-action" title="Rafraîchir le personnage" onClick={() => void refreshCharacter()}><RefreshCw size={17}/></button>
@@ -38,6 +42,7 @@ export default function App() {
         </div>
       </header>
 
+      {view === "dungeon-simulator" ? <DungeonSimulator onSimulate={simulateDungeon}/> : <>
       <section className="hero">
         <div className="character"><div className="avatar">{character.name.slice(0,1).toUpperCase()}</div><div><span>Personnage actif</span><h2>{character.name}</h2><p>{character.level > 0 ? `Niveau ${character.level} · ` : ""}{character.className}</p></div></div>
         <label className="selector"><Server size={17}/><select value={character.id} onChange={(e) => selectCharacter(e.target.value)}>{state.characters.map((item) => <option value={item.id} key={item.id}>{item.name} — {item.server}</option>)}</select><ChevronDown size={16}/></label>
@@ -54,6 +59,7 @@ export default function App() {
         <div className="grid">{state.automations.map((automation) => <AutomationCard key={automation.id} automation={automation} onToggle={() => toggleAutomation(automation.id)} onRun={() => void runNow(automation.id)}/>)}</div>
       </section>
       <Logs logs={state.logs}/>
+      </>}
     </main>
   </div>;
 }
