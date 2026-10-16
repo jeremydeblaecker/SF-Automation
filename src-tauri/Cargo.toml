@@ -1,6 +1,6 @@
 [package]
 name = "mercysf-reborn"
-version = "0.3.1"
+version = "0.4.0"
 description = "MercySF Reborn desktop shell"
 authors = ["MercySF Reborn contributors"]
 edition = "2021"
