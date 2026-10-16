@@ -37,3 +37,12 @@ export interface AppState {
   automations: AutomationState[];
   logs: ActionLog[];
 }
+
+export interface DungeonSimulationResult {
+  dungeon: string;
+  iterations: number;
+  winRatio: number;
+  threshold: number;
+  recommended: boolean;
+  recommendation: string;
+}
