@@ -17,7 +17,8 @@ const initialState: AppState = {
     { id: "dungeons", name: "Donjons", description: "Tentatives disponibles, combats simulés avant envoi", enabled: true, status: "ready", lastReason: "En attente d’un personnage connecté" },
     { id: "expeditions", name: "Expéditions", description: "Progression automatique (embranchements, récompenses, boss)", enabled: false, status: "idle", lastReason: "En attente d’un personnage connecté" },
     { id: "pets", name: "Familiers", description: "Nourrit automatiquement le meilleur familier disponible", enabled: false, status: "idle", lastReason: "En attente d’un personnage connecté" },
-    { id: "fortress", name: "Forteresse", description: "Attaque heuristique avec réserve de soldats (pas de simulation de victoire)", enabled: false, status: "idle", lastReason: "En attente d’un personnage connecté" }
+    { id: "fortress", name: "Forteresse", description: "Attaque heuristique avec réserve de soldats (pas de simulation de victoire)", enabled: false, status: "idle", lastReason: "En attente d’un personnage connecté" },
+    { id: "guild", name: "Guilde", description: "Hydre, portail et participation aux combats de guilde", enabled: false, status: "idle", lastReason: "En attente d’un personnage connecté" }
   ],
   logs: [{ id: "boot", at: new Date().toISOString(), level: "info", message: "MercySF Reborn initialisé." }]
 };
