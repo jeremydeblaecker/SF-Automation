@@ -1205,13 +1205,13 @@ async fn run_wheel(
         ));
     };
 
-    let reason = match payment {
-        FortunePayment::FreeTurn => "Le tour gratuit est disponible.".to_string(),
-        FortunePayment::LuckyCoins => format!(
+    let reason = if matches!(payment, FortunePayment::FreeTurn) {
+        "Le tour gratuit est disponible.".to_string()
+    } else {
+        format!(
             "{} Lucky Coins sont disponibles; le tour coûte {} Lucky Coins.",
             wheel.lucky_coins, LUCKY_COIN_SPIN_COST
-        ),
-        FortunePayment::Mushrooms => unreachable!("Le paiement en champignons n'est jamais sélectionné"),
+        )
     };
 
     send_limited(
@@ -1513,6 +1513,46 @@ mod tests {
         assert!(is_mushroom_safe_command(&Command::Fight {
             name: "adversaire".to_string(),
             use_mushroom: false,
+        }));
+    }
+
+    #[test]
+    fn gem_search_is_allowed() {
+        assert!(is_mushroom_safe_command(&Command::FortressGemStoneSearch));
+    }
+
+    #[test]
+    fn free_gem_search_finish_is_allowed() {
+        assert!(is_mushroom_safe_command(
+            &Command::FortressGemStoneSearchFinish { mushrooms: 0 }
+        ));
+    }
+
+    #[test]
+    fn paid_gem_search_finish_is_blocked() {
+        assert!(!is_mushroom_safe_command(
+            &Command::FortressGemStoneSearchFinish { mushrooms: 1 }
+        ));
+    }
+
+    #[test]
+    fn free_wheel_spin_is_allowed() {
+        assert!(is_mushroom_safe_command(&Command::SpinWheelOfFortune {
+            payment: FortunePayment::FreeTurn,
+        }));
+    }
+
+    #[test]
+    fn lucky_coin_wheel_spin_is_allowed() {
+        assert!(is_mushroom_safe_command(&Command::SpinWheelOfFortune {
+            payment: FortunePayment::LuckyCoins,
+        }));
+    }
+
+    #[test]
+    fn mushroom_wheel_spin_is_blocked() {
+        assert!(!is_mushroom_safe_command(&Command::SpinWheelOfFortune {
+            payment: FortunePayment::Mushrooms,
         }));
     }
 
