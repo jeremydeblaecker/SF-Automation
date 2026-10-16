@@ -97,6 +97,10 @@ export function useAppStore() {
     })),
   }));
   const toggleAutomation = (id: AutomationId) => setState((current) => ({ ...current, automations: current.automations.map((item) => item.id === id ? { ...item, enabled: !item.enabled, status: item.enabled ? "idle" : "ready", nextRunAt: undefined } : item) }));
+  const simulateDungeon = (iterations: number) => {
+    if (!state.activeCharacterId) throw new Error("Aucun personnage actif");
+    return client.simulateDungeon(state.activeCharacterId, iterations);
+  };
 
   return {
     state,
@@ -107,6 +111,7 @@ export function useAppStore() {
     toggleRunning,
     selectCharacter,
     toggleAutomation,
+    simulateDungeon,
     runNow: (id: AutomationId) => scheduler.runNow(id),
   };
 }
