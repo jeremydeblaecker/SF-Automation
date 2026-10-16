@@ -91,6 +91,10 @@ export class MockGameClient implements ConnectedGameClient {
         return { action: "Attaquer la forteresse ennemie", reason: "Heuristique de réserve de soldats (simulation, pas de vraie prédiction)", message: "Attaque de forteresse simulée.", cooldownMs: 30_000, didRequest: false };
       case "guild":
         return { action: "Vérifier la guilde", reason: "Hydre, portail et combats de guilde simulés", message: "Cycle guilde simulé.", cooldownMs: 30_000, didRequest: false };
+      case "gem-mine":
+        return { action: "Vérifier la mine de gemmes", reason: "Recherche simulée sans champignons", message: "Cycle mine simulé.", cooldownMs: 30_000, didRequest: false };
+      case "wheel":
+        return { action: "Vérifier la roue de la fortune", reason: "Tour gratuit ou Lucky Coins uniquement", message: "Cycle roue simulé.", cooldownMs: 30_000, didRequest: false };
     }
   }
 }
