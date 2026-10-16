@@ -94,3 +94,21 @@ npm run tauri dev
 ## Important
 
 L'automatisation d'un jeu peut contrevenir à ses conditions d'utilisation et son protocole peut changer. Cette application est une réimplémentation indépendante et doit être utilisée en connaissance de cause.
+
+
+## Exécutable Windows
+
+Pour générer l'installateur localement sous Windows :
+
+```bash
+npm ci
+npm run tauri build -- --bundles nsis
+```
+
+L'installateur est généré dans :
+
+```text
+src-tauri/target/release/bundle/nsis/
+```
+
+Le workflow GitHub Actions `Windows executable` permet aussi de lancer une compilation manuelle depuis l'onglet **Actions** du dépôt. Lorsqu'un tag `v*` est poussé, le même workflow publie automatiquement l'installateur `.exe` dans une GitHub Release.
