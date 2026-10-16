@@ -64,11 +64,11 @@ export function useAppStore() {
         connected: true,
         characters,
         activeCharacterId: characters[0].id,
-        logs: [{ id: crypto.randomUUID(), at: new Date().toISOString(), level: "success", message: `${characters.length} personnage(s) connecté(s) à S&F.` }, ...current.logs].slice(0, 100),
+        logs: [{ id: crypto.randomUUID(), at: new Date().toISOString(), level: "success" as const, message: `${characters.length} personnage(s) connecté(s) à S&F.` }, ...current.logs].slice(0, 100),
       }));
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      setState((current) => ({ ...current, connecting: false, connected: false, connectionError: message, logs: [{ id: crypto.randomUUID(), at: new Date().toISOString(), level: "error", message }, ...current.logs].slice(0, 100) }));
+      setState((current) => ({ ...current, connecting: false, connected: false, connectionError: message, logs: [{ id: crypto.randomUUID(), at: new Date().toISOString(), level: "error" as const, message }, ...current.logs].slice(0, 100) }));
     }
   };
 
@@ -84,7 +84,7 @@ export function useAppStore() {
       setState((current) => ({ ...current, characters: current.characters.map((item) => item.id === updated.id ? updated : item) }));
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      setState((current) => ({ ...current, logs: [{ id: crypto.randomUUID(), at: new Date().toISOString(), level: "error", message }, ...current.logs].slice(0, 100) }));
+      setState((current) => ({ ...current, logs: [{ id: crypto.randomUUID(), at: new Date().toISOString(), level: "error" as const, message }, ...current.logs].slice(0, 100) }));
     }
   };
 
