@@ -67,6 +67,25 @@ La sécurité réseau est imposée par le backend :
 - conserve une réserve de soldats avant une attaque ;
 - utilise une heuristique prudente car `sf-api` n'expose pas de simulation fiable de l'armée adverse.
 
+### Mine de gemmes
+
+- module désactivé par défaut ;
+- détecte si la mine est construite ;
+- attend localement la fin d'une recherche déjà en cours ;
+- récupère une gemme terminée uniquement avec `mushrooms: 0` ;
+- ne tente pas la récupération si l'inventaire est plein ;
+- relance une recherche uniquement si le personnage possède assez d'or ;
+- ne paie jamais pour accélérer une recherche.
+
+### Roue de la fortune
+
+- module désactivé par défaut ;
+- utilise en priorité le tour quotidien gratuit ;
+- utilise ensuite uniquement des Lucky Coins lorsqu'au moins 10 sont disponibles ;
+- respecte le plafond quotidien normal exposé par `sf-api` ;
+- espace les tours pour éviter les rafales de requêtes ;
+- le paiement `FortunePayment::Mushrooms` est explicitement bloqué par l'allowlist.
+
 ### Guilde
 
 - module disponible mais désactivé par défaut ;
