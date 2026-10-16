@@ -1,61 +1,52 @@
 # MercySF Reborn — état du développement
 
-## V0.3
+## V0.4
 
 ### Réseau / sessions
 
 - Backend Tauri/Rust avec `sf-api` 0.4.1.
 - Connexion compte S&F et ancien personnage.
-- Sessions uniquement en mémoire.
+- Sessions conservées uniquement en mémoire.
 - `Update` manuel avec cache de 30 secondes.
-- Une seule porte de sortie pour les commandes récurrentes : `send_limited`.
+- Toutes les commandes réseau récurrentes passent par `send_limited`.
 
-### Anti-spam
+### Protections
 
 - intervalle global minimum : 5 secondes ;
 - intervalle minimum par session : 5 secondes ;
 - cooldown backend par module : 8 secondes minimum ;
-- cooldown dynamique basé sur les vrais timers S&F quand ils sont disponibles ;
-- déduplication des actions en vol dans le scheduler ;
-- `runNow` ignore les clics avant `nextRunAt` ;
-- backoff réseau après erreur : 30 secondes, exponentiel, plafond 15 minutes ;
-- scheduler à tick 1 s mais **sans requête à chaque tick** : un appel backend n'est fait que si un module est arrivé à échéance ;
-- backend capable de répondre « cooldown local » sans contacter S&F si l'UI appelle trop tôt.
+- cooldown dynamique basé sur les timers S&F disponibles ;
+- backoff exponentiel : 30 s à 15 min ;
+- allowlist anti-champignons *fail closed* ;
+- scheduler frontend sans polling réseau à chaque tick ;
+- doubles exécutions d'un même module bloquées côté frontend ;
+- commandes payantes connues explicitement refusées.
 
-### Taverne
+### Modules
 
-- `StartQuest` réel ;
-- `FinishQuest` réel ;
-- attente basée sur `busy_until` ;
-- sélection XP/temps ;
-- `overwrite_inv = false` ;
-- protection inventaire plein.
+- **Taverne** : réel, activé par défaut, choix XP/temps et protection inventaire.
+- **Arène** : réel, activé par défaut, simulation locale et seuil de victoire.
+- **Donjons** : réel, activé par défaut, simulation locale et Tour exclue.
+- **Expéditions** : réel, désactivé par défaut, stratégie de choix encore simple.
+- **Familiers** : réel, désactivé par défaut, sélection du meilleur familier nourrissable.
+- **Forteresse** : réel, désactivé par défaut, heuristique de réserve de soldats.
 
-### Arène
+### Validation
 
-- `CheckArena` réel uniquement lorsque le cooldown local est expiré ;
-- `Fight` réel ;
-- `use_mushroom = false` ;
-- revalidation de `next_free_fight` avant le combat ;
-- premier adversaire valide pour limiter le nombre de consultations.
+- tests unitaires Rust sur la politique anti-champignons ;
+- vérifications statiques via `scripts/verify_safety.py` ;
+- CI GitHub Actions :
+  - `npm ci` ;
+  - `npm run build` ;
+  - vérification de sécurité Python ;
+  - `cargo fmt --check` ;
+  - `cargo clippy -D warnings` ;
+  - `cargo test`.
 
-### Donjons
+### Prochaines améliorations
 
-- `UpdateDungeons` réel seulement lorsque nécessaire ;
-- `FightDungeon` réel ;
-- revalidation du cooldown après `UpdateDungeons` ;
-- sélection du premier donjon standard ouvert ;
-- Tour exclue ;
-- `use_mushroom = false`.
-
-## Validation disponible dans cet environnement
-
-Le conteneur de génération n'a pas Rust/Cargo installé et les dépendances npm React ne sont pas présentes, donc un build Tauri complet ne peut pas être certifié ici. Des vérifications statiques de sécurité sont néanmoins exécutées avant l'archive V0.3 : unicité du point `send_command`, valeurs anti-spam, absence d'usage volontaire de champignons et protections scheduler.
-
-
-## V0.3.1 — verrou anti-champignons
-
-- allowlist stricte dans `send_limited` ;
-- seules `Update`, `CheckArena`, `UpdateDungeons`, `ViewPlayer`, `StartQuest(overwrite_inv=false)`, `FinishQuest(skip=None)`, `Fight(use_mushroom=false)` et `FightDungeon(use_mushroom=false)` sont autorisées ;
-- toute autre commande est bloquée localement avant tout appel réseau ;
-- politique *fail closed* : une future fonctionnalité ne peut pas dépenser de champignons par accident sans modifier explicitement cette allowlist.
+1. découper `src-tauri/src/main.rs` en modules sans modifier le comportement ;
+2. isoler les verrous par session afin qu'un personnage ne bloque pas les autres pendant une requête ;
+3. rendre les seuils de stratégie configurables tout en gardant les protections premium non configurables ;
+4. améliorer le scoring des expéditions, familiers et attaques de forteresse ;
+5. compléter les tests métier du scheduler et des stratégies.
